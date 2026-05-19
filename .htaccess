@@ -1,0 +1,106 @@
+# ═══════════════════════════════════════════════════════════
+# NOXARA - Apache .htaccess
+# Compatible: Apache 2.4+, cPanel/LiteSpeed
+# ═══════════════════════════════════════════════════════════
+
+# ── PHP Version (shared hosting) ────────────────────────────
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 12M
+    php_value max_execution_time 60
+    php_value memory_limit 256M
+    php_value session.cookie_httponly 1
+    php_value session.use_strict_mode 1
+</IfModule>
+<IfModule mod_php8.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 12M
+    php_value max_execution_time 60
+    php_value memory_limit 256M
+    php_value session.cookie_httponly 1
+    php_value session.use_strict_mode 1
+</IfModule>
+
+# ── Force HTTPS ──────────────────────────────────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP_HOST} !^localhost [NC]
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# ── Security Headers ─────────────────────────────────────────
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    # HSTS (enable after SSL confirmed working)
+    # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</IfModule>
+
+# ── Protect sensitive directories ────────────────────────────
+<FilesMatch "\.(sql|log|env|htpasswd|gitignore|md)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Block access to config and sensitive dirs
+RedirectMatch 403 ^/config/.*$
+RedirectMatch 403 ^/logs/.*$
+RedirectMatch 403 ^/cron/.*$
+RedirectMatch 403 ^/database/.*$
+
+# ── Gzip Compression ─────────────────────────────────────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json text/xml image/svg+xml
+</IfModule>
+
+# ── Browser Cache ─────────────────────────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css              "access plus 1 month"
+    ExpiresByType text/javascript       "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/jpeg            "access plus 6 months"
+    ExpiresByType image/png             "access plus 6 months"
+    ExpiresByType image/webp            "access plus 6 months"
+    ExpiresByType image/gif             "access plus 6 months"
+    ExpiresByType image/svg+xml         "access plus 6 months"
+    ExpiresByType image/x-icon          "access plus 1 year"
+    ExpiresByType font/woff2            "access plus 1 year"
+    ExpiresByType text/html             "access plus 0 seconds"
+</IfModule>
+
+# ── URL Rewriting (Clean URLs) ────────────────────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Block direct access to PHP files in protected dirs
+    RewriteRule ^config/.*\.php$ - [F,L]
+    RewriteRule ^logs/ - [F,L]
+    RewriteRule ^database/ - [F,L]
+
+    # Allow direct access to existing files and directories
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Custom error pages
+    ErrorDocument 404 /errors/404.php
+    ErrorDocument 500 /errors/500.php
+    ErrorDocument 403 /errors/blocked.php
+    ErrorDocument 503 /errors/maintenance.php
+</IfModule>
+
+# ── File upload limit override ────────────────────────────────
+LimitRequestBody 10485760
+
+# ── Prevent directory listing ─────────────────────────────────
+Options -Indexes -ExecCGI
+Options +FollowSymLinks
+
+# ── Charset ───────────────────────────────────────────────────
+AddDefaultCharset UTF-8
